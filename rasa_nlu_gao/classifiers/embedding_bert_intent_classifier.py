@@ -59,6 +59,8 @@ class EmbeddingBertIntentClassifier(Component):
         # regularization
         "C2": 0.002,
         "droprate": 0.2,
+        "scale": 10,
+        "margin": 0.35,
 
         # flag if tokenize intents
         "intent_tokenization_flag": False,
@@ -92,6 +94,8 @@ class EmbeddingBertIntentClassifier(Component):
     def _load_regularization_params(self):
         self.C2 = self.component_config['C2']
         self.droprate = self.component_config['droprate']
+        self.scale = self.component_config['scale']
+        self.margin = self.component_config['margin']
 
     def _load_flag_if_tokenize_intents(self):
         self.intent_tokenization_flag = self.component_config['intent_tokenization_flag']
@@ -297,8 +301,8 @@ class EmbeddingBertIntentClassifier(Component):
             is_training = tf.placeholder_with_default(False, shape=())
 
             # Create a graph for training
-            logits_train = conv_net(self.a_in, num_classes, self.num_hidden_layers, self.hidden_layer_size, self.C2, self.droprate, is_training=True)
-
+            logits_train = conv_net(self.a_in, self.b_in, num_classes, self.num_hidden_layers, self.hidden_layer_size, self.C2, self.droprate, self.scale, self.margin, is_training=True)
+            #log_probs = tf.nn.log_softmax(logits_train, axis=-1)
             # Define loss and optimizer (with train logits, for dropout to take effect)
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits_train, labels=self.b_in)) + tf.losses.get_regularization_loss()
 
@@ -313,7 +317,6 @@ class EmbeddingBertIntentClassifier(Component):
 
             pbar = tqdm(range(self.epochs), desc="Epochs")
             train_acc = 0
-            last_loss = 0
             for ep in pbar:
                 indices = np.random.permutation(len(X))
 

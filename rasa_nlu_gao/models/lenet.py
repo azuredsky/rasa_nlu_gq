@@ -76,28 +76,70 @@ def arcface_loss(embedding, labels, out_num, s=64., m=0.5, w_init=None):
         output = tf.add(tf.multiply(s_cos_t, inv_mask), tf.multiply(cos_mt_temp, labels), name='arcface_loss_output')
     return output
 
+def cnn_single_layer(x, is_training):
+    pooled_outputs = []
+    sequence_length = 25
+    filter_sizes = [1,3,5,11]
+    num_filters = len(filter_sizes)
+    num_filters_total = sum(filter_sizes)
+    for i, filter_size in enumerate(filter_sizes):
+        # with tf.name_scope("convolution-pooling-%s" %filter_size):
+        with tf.variable_scope("convolution-pooling-%s" % filter_size):
+            # ====>a.create filter
+            filter = tf.get_variable("filter-%s" % filter_size, [filter_size, x.shape[-1], 1, num_filters])
+
+            conv = tf.nn.conv2d(x, filter, strides=[1, 1, 1, 1], padding="VALID",name="conv")  # shape:[batch_size,sequence_length - filter_size + 1,1,num_filters]
+            conv = tf.contrib.layers.batch_norm(conv, is_training=is_training, scope='cnn_bn_')
+            print(i,conv)
+
+            b = tf.get_variable("b-%s" % filter_size, [num_filters])  # ADD 2017-06-09
+            h = tf.nn.relu(tf.nn.bias_add(conv, b),"relu")  # shape:[batch_size,sequence_length - filter_size + 1,1,num_filters]. tf.nn.bias_add:adds `bias` to `value`
+            pooled = tf.nn.max_pool(h, ksize=[1, sequence_length - filter_size + 1, 1, 1],strides=[1, 1, 1, 1], padding='VALID',name="pool")  # shape:[batch_size, 1, 1, num_filters].max_pool:performs the max pooling on the input.
+            pooled_outputs.append(pooled)
+    print(pooled_outputs)
+    h_pool = tf.concat(pooled_outputs,3)  # shape:[batch_size, 1, 1, num_filters_total]. tf.concat=>concatenates tensors along one dimension.where num_filters_total=num_filters_1+num_filters_2+num_filters_3
+    print(h_pool)
+    return h_pool
+
 # Build a convolutional neural network
 def conv_net(x, labels, n_classes, num_layers,layer_size, C2, dropout, scale, margin, is_training):
     # Define a scope for reusing the variables
     with tf.variable_scope('ConvNet'):
-        # Flatten the data to a 1-D vector for the fully connected layer
-        x = tf.contrib.layers.flatten(x)
+        lstm_fw_cell = tf.nn.rnn_cell.LSTMCell(x.shape[-1]) #forward direction cell
+        lstm_bw_cell = tf.nn.rnn_cell.LSTMCell(x.shape[-1]) #backward direction cell
+
+        encoder_f_cell = tf.contrib.rnn.DropoutWrapper(lstm_fw_cell,output_keep_prob=0.5)
+        encoder_b_cell = tf.contrib.rnn.DropoutWrapper(lstm_bw_cell,output_keep_prob=0.5)
+
+        (encoder_fw_outputs, encoder_bw_outputs), (encoder_fw_final_state, encoder_bw_final_state) = \
+            tf.nn.bidirectional_dynamic_rnn(encoder_f_cell, encoder_b_cell, x, dtype=tf.float32)
+
+        encoder_outputs = tf.concat((encoder_fw_outputs, encoder_bw_outputs), 2) #[batch_size,sequence_length,hidden_size*2]
+        encoder_final_state_c = tf.concat((encoder_fw_final_state.c, encoder_bw_final_state.c), 1)
+        encoder_final_state_h = tf.concat((encoder_fw_final_state.h, encoder_bw_final_state.h), 1)
+
+        print(encoder_outputs, encoder_final_state_c, encoder_final_state_h)
+        #encoder_final_state = tf.contrib.rnn.LSTMStateTuple(c=encoder_final_state_c, h=encoder_final_state_h)
 
         reg = tf.contrib.layers.l2_regularizer(C2)
+
         name = 'dense'
         for i in range(num_layers):
-            x = tf.layers.dense(inputs=x,
+            x = tf.layers.dense(inputs=encoder_final_state_h,
                                 units=layer_size[i],
                                 activation=tf.nn.relu,
                                 kernel_regularizer=reg,
                                 name='hidden_layer_{}_{}'.format(name, i))
             x = tf.layers.dropout(x, rate=dropout, training=is_training)
 
-        x = tf.layers.dense(inputs=x,
-                            units=n_classes*20,
+
+        #'''
+        out = tf.layers.dense(inputs=x,
+                            units=n_classes,
                             kernel_regularizer=reg,
                             name='dense_layer_{}'.format(name))
+        #'''
 
-    out = cosine_losses(x, labels, n_classes, scale, margin)
+    #out = cosine_losses(x, labels, n_classes, scale, margin)
 
     return out

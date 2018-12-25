@@ -55,12 +55,13 @@ class EmbeddingBertIntentClassifier(Component):
         "batch_size": 256,
         "epochs": 300,
         "learning_rate": 0.001,
+        "max_seq_len": 25,
 
         # regularization
         "C2": 0.002,
         "droprate": 0.2,
-        "scale": 10,
-        "margin": 0.35,
+        "scale": 1.0,
+        "margin": 0.25,
 
         # flag if tokenize intents
         "intent_tokenization_flag": False,
@@ -90,6 +91,7 @@ class EmbeddingBertIntentClassifier(Component):
         self.batch_size = self.component_config['batch_size']
         self.epochs = self.component_config['epochs']
         self.learning_rate = self.component_config['learning_rate']
+        self.max_seq_len = self.component_config['max_seq_len']
 
     def _load_regularization_params(self):
         self.C2 = self.component_config['C2']
@@ -295,7 +297,7 @@ class EmbeddingBertIntentClassifier(Component):
         self.graph = tf.Graph()
         with self.graph.as_default():
 
-            self.a_in = tf.placeholder(tf.float32, (None, X.shape[-1]), name='a')
+            self.a_in = tf.placeholder(tf.float32, (None, self.max_seq_len, X.shape[-1]), name='a')
             self.b_in = tf.placeholder(tf.float32, (None, Y.shape[-1]), name='b')
 
             is_training = tf.placeholder_with_default(False, shape=())
@@ -345,7 +347,6 @@ class EmbeddingBertIntentClassifier(Component):
                             (ep + 1) == self.epochs):
                         train_acc = self._output_training_stat(X, intents_for_X,
                                                             is_training)
-                        last_loss = ep_loss
 
                         pbar.set_postfix({
                             "loss": "{:.3f}".format(ep_loss),
@@ -371,7 +372,7 @@ class EmbeddingBertIntentClassifier(Component):
         else:
 
             # get features (bag of words) for a message
-            X = message.get("text_features").reshape(1, -1)
+            X = message.get("text_features").reshape(1, self.max_seq_len, -1)
 
             # stack encoded_all_intents on top of each other
             # to create candidates for test examples

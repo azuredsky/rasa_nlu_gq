@@ -120,7 +120,19 @@ And returning structured data like:
         "allow_growth": True
       }
   ```
+  add new classifer： multi_task_intent  reference： https://github.com/GaoQ1/rasa-nlp-architect
+  ```
+    language: "zh"
 
+    pipeline:
+    - name: "tokenizer_jieba"
+
+    - name: "multi_task_intent"
+      intent_tokenization_flag: false
+      epochs: 50
+      learning_rate: 0.001
+      batch_size: 500
+  ```
 ## Quick Install
 ```
 pip install rasa-nlu-gao

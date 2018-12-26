@@ -38,7 +38,7 @@ from rasa_nlu_gao.featurizers.intent_featurizer_wordvector import WordVectorsFea
 from rasa_nlu_gao.featurizers.bert_vectors_featurizer import BertVectorsFeaturizer  # customize
 
 from rasa_nlu_gao.classifiers.embedding_bert_intent_classifier import EmbeddingBertIntentClassifier  # customize
-
+from rasa_nlu_gao.classifiers.multi_task_intent import MultiTaskIntent  # customize
 
 from rasa_nlu_gao.featurizers.mitie_featurizer import MitieFeaturizer
 from rasa_nlu_gao.featurizers.ngram_featurizer import NGramFeaturizer
@@ -69,6 +69,7 @@ component_classes = [
     WordVectorsFeaturizer,  # customize
     BertVectorsFeaturizer,  # customize
     EmbeddingBertIntentClassifier,  # customize
+    MultiTaskIntent,  # customize
     EntitySynonymMapper,
     SpacyFeaturizer, MitieFeaturizer, NGramFeaturizer, RegexFeaturizer,
     CountVectorsFeaturizer,

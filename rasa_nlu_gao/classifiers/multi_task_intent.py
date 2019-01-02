@@ -262,7 +262,6 @@ class MultiTaskIntent(Component):
         intent = {"name": None, "confidence": 0.0}
         intent_ranking = []
 
-
         # get features (bag of words) for a message
         X = message.get("tokens")
         text_arr =[]

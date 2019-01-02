@@ -100,6 +100,7 @@ And returning structured data like:
     - name: "ner_crf"
     - name: "jieba_pseg_extractor"
   ```
+  bert server 配置详见：https://github.com/azuredsky/bert-as-service
   - 新增了对CPU和GPU的利用率的配置，主要是`intent_classifier_tensorflow_embedding`和`ner_bilstm_crf`这两个使用到tensorflow的组件，配置如下（当然config_proto可以不配置，默认值会将资源全部利用）：
   ```
     language: "zh"
